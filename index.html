@@ -208,6 +208,9 @@
                   timestamp: new Date().toISOString()
                 }, ...prev]);
                 
+                // Track URL shortening event
+                trackEvent('URL', 'Shorten', keyword || 'auto-generated');
+                
                 setUrl('');
                 setKeyword('');
                 setTitle('');
@@ -227,6 +230,7 @@
           const copyToClipboard = (text) => {
             navigator.clipboard.writeText(text);
             setCopied(true);
+            trackEvent('Interaction', 'Copy', 'Short URL');
             setTimeout(() => setCopied(false), 2000);
           };
 
@@ -246,6 +250,7 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            trackEvent('QR Code', 'Download', filename);
           };
 
           return (
@@ -335,6 +340,52 @@
                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
+
+                      <div className="border-t border-slate-200 pt-4 mt-4">
+                        <h3 className="text-lg font-semibold mb-3 text-slate-800">Analytics (Optional)</h3>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Google Analytics ID
+                          </label>
+                          <input
+                            type="text"
+                            value={analytics.googleAnalyticsId}
+                            onChange={(e) => saveAnalytics({...analytics, googleAnalyticsId: e.target.value})}
+                            placeholder="G-XXXXXXXXXX or UA-XXXXXXXXX"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-slate-500 mt-1">Get your ID from Google Analytics</p>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Matomo URL
+                          </label>
+                          <input
+                            type="text"
+                            value={analytics.matomoUrl}
+                            onChange={(e) => saveAnalytics({...analytics, matomoUrl: e.target.value})}
+                            placeholder="https://your-matomo-instance.com"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-slate-500 mt-1">Your Matomo tracking URL (without /matomo.php)</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Matomo Site ID
+                          </label>
+                          <input
+                            type="text"
+                            value={analytics.matomoSiteId}
+                            onChange={(e) => saveAnalytics({...analytics, matomoSiteId: e.target.value})}
+                            placeholder="1"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-slate-500 mt-1">Your Matomo site ID (usually a number)</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -360,6 +411,16 @@
                     }`}
                   >
                     My Links ({links.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('faq')}
+                    className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                      activeTab === 'faq'
+                        ? 'bg-white text-slate-800 shadow-md'
+                        : 'text-slate-600 hover:bg-white/50'
+                    }`}
+                  >
+                    FAQ / Setup
                   </button>
                 </div>
 
@@ -454,6 +515,209 @@
                         </div>
                       </div>
                     )}
+                  </div>
+                ) : activeTab === 'faq' ? (
+                  <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+                    <h2 className="text-2xl font-bold text-slate-800 mb-6">
+                      FAQ & Setup Guide
+                    </h2>
+
+                    <div className="space-y-6">
+                      {/* What do I need? */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          ❓ What do I need to use this?
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <p>To use this URL shortener frontend, you need:</p>
+                          <ul className="list-disc list-inside ml-4 space-y-1">
+                            <li>A working YOURLS installation (your own server or provided by someone)</li>
+                            <li>The CORS plugin installed on the YOURLS server</li>
+                            <li>Your YOURLS API URL</li>
+                            <li>Your YOURLS signature token</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* YOURLS Installation */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          🖥️ How do I install YOURLS?
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <p>If you don't have YOURLS yet:</p>
+                          <ol className="list-decimal list-inside ml-4 space-y-1">
+                            <li>Get a web hosting account with PHP and MySQL</li>
+                            <li>Download YOURLS from <a href="https://yourls.org" target="_blank" className="text-blue-600 hover:underline">yourls.org</a></li>
+                            <li>Upload to your server and run the installer</li>
+                            <li>Follow the setup wizard</li>
+                          </ol>
+                          <p className="mt-2 text-sm">
+                            Full guide: <a href="https://yourls.org/docs" target="_blank" className="text-blue-600 hover:underline">https://yourls.org/docs</a>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* CORS Plugin */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          🔌 Step 1: Install the CORS Plugin
+                        </h3>
+                        <div className="text-slate-600 space-y-3">
+                          <p className="font-medium">This is REQUIRED for the frontend to work!</p>
+                          <ol className="list-decimal list-inside ml-4 space-y-2">
+                            <li>Download the plugin from: <a href="https://github.com/TEODE/yourls-access-control-allow-origin" target="_blank" className="text-blue-600 hover:underline break-all">github.com/TEODE/yourls-access-control-allow-origin</a></li>
+                            <li>Extract and upload to: <code className="bg-slate-100 px-2 py-1 rounded text-sm">yourls/user/plugins/access-control-allow-origin/</code></li>
+                            <li>Go to your YOURLS admin → Manage Plugins</li>
+                            <li>Find "Access-Control-Allow-Origin" and click Activate</li>
+                          </ol>
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                            <p className="text-sm text-yellow-800">
+                              <strong>⚠️ Without this plugin:</strong> You'll get a "CORS not enabled" error and nothing will work.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* API Token */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          🔑 Step 2: Get Your API Signature Token
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <ol className="list-decimal list-inside ml-4 space-y-1">
+                            <li>Log into your YOURLS admin panel</li>
+                            <li>Go to <strong>Tools</strong> → <strong>Secure passwordless API call</strong></li>
+                            <li>Copy your signature token (keep it secret!)</li>
+                          </ol>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                            <p className="text-sm text-blue-800">
+                              💡 <strong>Tip:</strong> Treat this token like a password. Anyone with it can create short links on your behalf!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Configure Frontend */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          ⚙️ Step 3: Configure This Frontend
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <ol className="list-decimal list-inside ml-4 space-y-1">
+                            <li>Click the ⚙️ Settings icon in the top right</li>
+                            <li>Enter your YOURLS API URL (e.g., <code className="bg-slate-100 px-1 rounded text-sm">https://yourdomain.com/yourls-api.php</code>)</li>
+                            <li>Paste your signature token</li>
+                            <li>Optionally customize brand name and color</li>
+                          </ol>
+                          <p className="mt-2">Your settings are saved in your browser and never leave your device!</p>
+                        </div>
+                      </div>
+
+                      {/* Finding API URL */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          🔍 How do I find my API URL?
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <p>Your API URL depends on where YOURLS is installed:</p>
+                          <ul className="ml-4 space-y-2">
+                            <li>
+                              <strong>Root install:</strong>
+                              <br />
+                              <code className="bg-slate-100 px-2 py-1 rounded text-sm">https://yourdomain.com/yourls-api.php</code>
+                            </li>
+                            <li>
+                              <strong>Subdirectory:</strong>
+                              <br />
+                              <code className="bg-slate-100 px-2 py-1 rounded text-sm">https://yourdomain.com/short/yourls-api.php</code>
+                            </li>
+                            <li>
+                              <strong>Subdomain:</strong>
+                              <br />
+                              <code className="bg-slate-100 px-2 py-1 rounded text-sm">https://s.yourdomain.com/yourls-api.php</code>
+                            </li>
+                          </ul>
+                          <p className="mt-2 text-sm">
+                            💡 If your admin is at <code className="bg-slate-100 px-1 rounded">https://example.com/admin/</code>, 
+                            your API is at <code className="bg-slate-100 px-1 rounded">https://example.com/yourls-api.php</code>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Troubleshooting */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          🔧 Common Issues & Solutions
+                        </h3>
+                        <div className="text-slate-600 space-y-3">
+                          <div>
+                            <p className="font-medium text-slate-800">❌ "CORS not enabled on your server"</p>
+                            <p className="text-sm">→ Install and activate the CORS plugin (see Step 1 above)</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">❌ "404 Not Found"</p>
+                            <p className="text-sm">→ Check your API URL is correct (must end with /yourls-api.php)</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">❌ "Invalid signature"</p>
+                            <p className="text-sm">→ Double-check your signature token is copied correctly</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">❌ Links don't appear in YOURLS admin</p>
+                            <p className="text-sm">→ Make sure CORS plugin is activated and working</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Analytics */}
+                      <div className="border-b border-slate-200 pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          📊 Do I need to set up analytics?
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <p><strong>No, analytics are completely optional!</strong></p>
+                          <p>If you want to track usage of this frontend, you can configure:</p>
+                          <ul className="list-disc list-inside ml-4 space-y-1">
+                            <li><strong>Google Analytics:</strong> Enter your GA4 tracking ID (G-XXXXXXXXXX)</li>
+                            <li><strong>Matomo:</strong> Enter your Matomo URL and Site ID</li>
+                          </ul>
+                          <p className="text-sm mt-2">These settings are also stored locally in your browser.</p>
+                        </div>
+                      </div>
+
+                      {/* Privacy */}
+                      <div className="pb-6">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                          🔒 Is my data safe?
+                        </h3>
+                        <div className="text-slate-600 space-y-2">
+                          <p><strong>Yes! This frontend is privacy-focused:</strong></p>
+                          <ul className="list-disc list-inside ml-4 space-y-1">
+                            <li>All settings stored locally in YOUR browser</li>
+                            <li>No data sent to third parties (except your YOURLS server)</li>
+                            <li>Your API token never leaves your device</li>
+                            <li>Open source - you can review the code</li>
+                          </ul>
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                            <p className="text-sm text-green-800">
+                              ✅ Your YOURLS credentials are only used to connect directly to YOUR YOURLS server.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Still need help */}
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                          💬 Still need help?
+                        </h3>
+                        <p className="text-slate-600 text-sm">
+                          Visit the <a href="https://discourse.yourls.org/" target="_blank" className="text-blue-600 hover:underline">YOURLS Forums</a> or 
+                          check the <a href="https://yourls.org/docs" target="_blank" className="text-blue-600 hover:underline">YOURLS Documentation</a> for more help.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">

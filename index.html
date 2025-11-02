@@ -100,17 +100,85 @@
           const [activeTab, setActiveTab] = useState('shorten');
           const [showQR, setShowQR] = useState(null);
           const [qrSize, setQrSize] = useState(256);
+          const [analytics, setAnalytics] = useState({
+            googleAnalyticsId: '',
+            matomoUrl: '',
+            matomoSiteId: ''
+          });
 
           useEffect(() => {
             const saved = localStorage.getItem('yourls-config');
             if (saved) {
               setConfig(JSON.parse(saved));
             }
+            
+            const savedAnalytics = localStorage.getItem('yourls-analytics');
+            if (savedAnalytics) {
+              const analyticsConfig = JSON.parse(savedAnalytics);
+              setAnalytics(analyticsConfig);
+              initializeAnalytics(analyticsConfig);
+            }
           }, []);
 
           const saveConfig = (newConfig) => {
             setConfig(newConfig);
             localStorage.setItem('yourls-config', JSON.stringify(newConfig));
+          };
+
+          const saveAnalytics = (newAnalytics) => {
+            setAnalytics(newAnalytics);
+            localStorage.setItem('yourls-analytics', JSON.stringify(newAnalytics));
+            initializeAnalytics(newAnalytics);
+          };
+
+          const initializeAnalytics = (analyticsConfig) => {
+            // Initialize Google Analytics
+            if (analyticsConfig.googleAnalyticsId) {
+              // Remove existing GA script if present
+              const existingGA = document.querySelector('script[src*="googletagmanager"]');
+              if (existingGA) existingGA.remove();
+              
+              const gaScript = document.createElement('script');
+              gaScript.async = true;
+              gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${analyticsConfig.googleAnalyticsId}`;
+              document.head.appendChild(gaScript);
+
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', analyticsConfig.googleAnalyticsId);
+              window.gtag = gtag;
+            }
+
+            // Initialize Matomo
+            if (analyticsConfig.matomoUrl && analyticsConfig.matomoSiteId) {
+              var _paq = window._paq = window._paq || [];
+              _paq.push(['trackPageView']);
+              _paq.push(['enableLinkTracking']);
+              
+              const matomoScript = document.createElement('script');
+              matomoScript.async = true;
+              matomoScript.src = `${analyticsConfig.matomoUrl}/matomo.js`;
+              document.head.appendChild(matomoScript);
+
+              _paq.push(['setTrackerUrl', analyticsConfig.matomoUrl + '/matomo.php']);
+              _paq.push(['setSiteId', analyticsConfig.matomoSiteId]);
+            }
+          };
+
+          const trackEvent = (category, action, name) => {
+            // Track with Google Analytics
+            if (analytics.googleAnalyticsId && window.gtag) {
+              window.gtag('event', action, {
+                event_category: category,
+                event_label: name
+              });
+            }
+
+            // Track with Matomo
+            if (analytics.matomoUrl && analytics.matomoSiteId && window._paq) {
+              window._paq.push(['trackEvent', category, action, name]);
+            }
           };
 
           const shortenUrl = async () => {
@@ -127,33 +195,15 @@
                 ...(title && { title })
               });
 
-              // Uncomment below for real YOURLS API
-              /*
               const response = await fetch(`${config.apiUrl}?${params}`);
               const data = await response.json();
-              if (data.status === 'success') {
+              
+              if (data.status === 'success' || data.shorturl) {
                 setShortUrl(data.shorturl);
                 setLinks(prev => [{
                   shorturl: data.shorturl,
-                  url: data.url.url,
-                  title: data.title,
-                  clicks: 0,
-                  timestamp: new Date().toISOString()
-                }, ...prev]);
-              }
-              setLoading(false);
-              */
-
-              // Mock response for demo (remove when using real API)
-              setTimeout(() => {
-                const mockShortUrl = `${config.apiUrl.split('/yourls-api')[0]}/${keyword || Math.random().toString(36).substr(2, 6)}`;
-                setShortUrl(mockShortUrl);
-                setLoading(false);
-                
-                setLinks(prev => [{
-                  shorturl: mockShortUrl,
-                  url: url,
-                  title: title || url,
+                  url: data.url?.url || url,
+                  title: data.title || title || url,
                   clicks: 0,
                   timestamp: new Date().toISOString()
                 }, ...prev]);
@@ -161,11 +211,15 @@
                 setUrl('');
                 setKeyword('');
                 setTitle('');
-              }, 800);
+              } else {
+                alert(`Error: ${data.message || 'Failed to shorten URL'}`);
+              }
+              
+              setLoading(false);
 
             } catch (error) {
               console.error('Error shortening URL:', error);
-              alert('Error shortening URL. Please check your API settings.');
+              alert('Error connecting to YOURLS API. Please check:\n\n1. API URL is correct\n2. Signature token is valid\n3. CORS is enabled on your YOURLS server\n\nError: ' + error.message);
               setLoading(false);
             }
           };
